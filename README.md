@@ -72,7 +72,6 @@ Notifications appear as a floating card in your headset — fully positioned, op
 1. Open **Windows Settings**
 2. Go to **Privacy & security → Notifications**
 3. Enable **"Allow apps to access notifications"**
-4. Find **"Windows VR Notifier"** and enable it
 
 If you skip this step, the app will run but never receive any notifications.
 
