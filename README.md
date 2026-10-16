@@ -78,7 +78,7 @@ If you move the exe to a different folder:
 
 1. Open **Windows Settings**
 2. Go to **Privacy & security → Notifications**
-3. Enable **"Allow apps to access notifications"**
+3. Enable **"Let apps access your notifications"**
 
 If you skip this step, the app will run but never receive any notifications.
 
