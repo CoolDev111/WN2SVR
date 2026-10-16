@@ -38,6 +38,7 @@ Notifications appear as a floating card in your headset — fully positioned, op
 ### SteamVR integration
 - Auto-generates and registers the `.vrmanifest` on first launch
 - Auto-enables **auto-launch** with SteamVR — starts automatically when SteamVR starts
+- Paths with spaces work correctly (URL-encoded in the manifest)
 - No manual manifest editing required
 
 ### Reliability
@@ -62,10 +63,16 @@ Notifications appear as a floating card in your headset — fully positioned, op
 ## Installation
 
 1. Download the latest `WN2SVR.exe` from [Releases](../../releases)
-2. Place it anywhere on your PC
+2. Place it anywhere on your PC (folders with spaces are fine)
 3. Run it once — it will auto-register with SteamVR
 4. Grant notification access (see below)
 5. Done — it will auto-start with SteamVR from now on
+
+### Moving the exe
+
+If you move the exe to a different folder:
+- Run it once from the new location — it will re-register with SteamVR automatically
+- Your settings (`config.json`) stay in the old folder. Copy `config.json` to the new folder if you want to keep your saved position/alpha/appearance settings.
 
 ### Granting notification access (one-time)
 
@@ -110,7 +117,7 @@ If you skip this step, the app will run but never receive any notifications.
 
 ## Configuration
 
-All settings are stored in `config.json` next to the executable:
+All settings are stored in `config.json` **next to the executable** (not in a temp folder or user profile):
 
 | Setting | Description | Default |
 |---------|-------------|---------|
@@ -124,7 +131,7 @@ All settings are stored in `config.json` next to the executable:
 | `dnd_enabled` | Do Not Disturb flag | false |
 | `history_max` | Max notifications kept in history | 50 |
 
-You can edit this file manually (while the app is closed) or use the GUI.
+You can edit this file manually (while the app is closed) or use the GUI. The file is created automatically on first save.
 
 ---
 
@@ -151,6 +158,12 @@ Grant notification access in Windows Settings (see Installation above).
 
 ### Dashboard tab doesn't appear in SteamVR
 Restart SteamVR once. The tab should appear after that. If not, run the app once from the desktop to re-register the manifest.
+
+### Settings reset to defaults
+The app looks for `config.json` next to the executable. If you moved the exe, either copy your old `config.json` to the new location or reconfigure via the GUI.
+
+### App doesn't auto-launch with SteamVR
+If the exe was moved, SteamVR's registration points to the old path. Run the exe once from the new location — it will re-register automatically.
 
 ### Overlay stuck visible / dashboard vanishes
 This was a bug in earlier versions caused by file corruption from concurrent read/write. It's fixed — if you're still seeing it, make sure you're on the latest version.
