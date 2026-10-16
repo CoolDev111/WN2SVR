@@ -6,6 +6,16 @@ Notifications appear as a floating card in your headset — fully positioned, op
 
 ---
 
+## Images
+
+#### VR Dashboard in SteamVR
+![VR Dashboard in SteamVR](images/VR_UI.jpg)
+
+#### Desktop Dashboard
+![Desktop Dashboard](images/Desktop-UI.png)
+
+---
+
 ## Features
 
 ### Core notification mirroring
