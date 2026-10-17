@@ -185,7 +185,7 @@ This was a bug in earlier versions (RGB vs RGBA mode for the icon). It's fixed i
 
 ## License
 
-All rights reserved. This software is provided as a compiled executable for end-user use.
+All rights reserved. This software is provided as a compiled executable or open source.
 
 ---
 
