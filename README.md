@@ -187,7 +187,7 @@ This was a bug in earlier versions (RGB vs RGBA mode for the icon). It's fixed i
 
 All rights reserved. This software is provided as a compiled executable for end-user use.
 
-Redistribution, modification, reverse engineering, or redistribution of the source code is not permitted without explicit written permission from the author.
+Redistribution, modification, or reverse engineering of the source code is not permitted without explicit written permission from the author.
 
 ---
 
