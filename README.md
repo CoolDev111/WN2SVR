@@ -209,4 +209,3 @@ Potential future features (not implemented):
 - Customizable card themes
 - Notification grouping for rapid-fire messages
 - System tray quick actions
-- Run at Windows startup
