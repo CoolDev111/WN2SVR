@@ -196,7 +196,7 @@ This was a bug in earlier versions (RGB vs RGBA mode for the icon). It's fixed i
 1. Install [Python 3.10+](https://www.python.org/downloads/) (ensure it's in your PATH)
 2. Clone the repo:
    ```bash
-   git clone https://github.com/yourusername/WN2SVR.git
+   git clone https://github.com/CoolDev111/WN2SVR.git
    cd WN2SVR
    ```
 3. Install dependencies:
