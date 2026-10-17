@@ -64,9 +64,15 @@ Notifications appear as a floating card in your headset — fully positioned, op
 
 ## Requirements
 
+### For users (running the pre-built exe)
 - **Windows 10 or later** (uses WinRT notification APIs)
 - **SteamVR installed** and a VR headset connected
 - **Notification listener access** granted in Windows Settings
+
+### For developers (building from source)
+- All of the above, plus:
+- **Python 3.10+**
+- Dependencies listed in `requirements.txt`
 
 ---
 
@@ -183,18 +189,68 @@ This was a bug in earlier versions (RGB vs RGBA mode for the icon). It's fixed i
 
 ---
 
+## Building from source
+
+### Prerequisites
+
+1. Install [Python 3.10+](https://www.python.org/downloads/) (ensure it's in your PATH)
+2. Clone the repo:
+   ```bash
+   git clone https://github.com/yourusername/WN2SVR.git
+   cd WN2SVR
+   ```
+3. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+### Option A: Run directly with Python
+
+```bash
+python WN2SVR.py
+```
+
+Useful for development — you can edit the code and re-run immediately.
+
+### Option B: Build a standalone exe with PyInstaller
+
+1. Install PyInstaller:
+   ```bash
+   pip install pyinstaller
+   ```
+
+2. Build the exe:
+   ```bash
+   pyinstaller --noconsole --onefile --collect-all openvr WN2SVR.py
+   ```
+
+3. The exe will be in `dist/WN2SVR.exe`
+4. Copy it anywhere and run it once to register with SteamVR
+
+### Build notes
+
+- `--onefile` bundles everything into a single exe (~40-50MB)
+- `--noconsole` prevents a console window from appearing
+- Hidden imports are needed because PyInstaller can't always detect dynamic imports used by `openvr`, `pystray`, and `winsdk`
+- The exe is built on Windows, for Windows — there's no cross-compilation path since `winsdk` is Windows-only
+
+---
+
 ## License
 
-All rights reserved. This software is provided as a compiled executable or open source.
+MIT License — see [LICENSE](LICENSE) for details.
+
+You're free to use, modify, distribute, and sell this software. Attribution appreciated but not required.
 
 ---
 
 ## Acknowledgments
 
 Built using:
-- [SteamVR](https://store.steampowered.com/steamvr) — Valve's VR runtime
+- [openvr](https://github.com/ValveSoftware/openvr) — SteamVR Python bindings
+- [winsdk](https://github.com/MicrosoftDocs/winrt-python) — Windows Runtime Python projection
+- [pystray](https://github.com/moses-palmer/pystray) — System tray support
 - [Pillow](https://python-pillow.org) — Image rendering
-- Windows Runtime APIs for notification access
 
 ---
 
