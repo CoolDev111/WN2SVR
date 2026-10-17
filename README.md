@@ -231,7 +231,6 @@ Useful for development — you can edit the code and re-run immediately.
 
 - `--onefile` bundles everything into a single exe (~40-50MB)
 - `--noconsole` prevents a console window from appearing
-- Hidden imports are needed because PyInstaller can't always detect dynamic imports used by `openvr`, `pystray`, and `winsdk`
 - The exe is built on Windows, for Windows — there's no cross-compilation path since `winsdk` is Windows-only
 
 ---
