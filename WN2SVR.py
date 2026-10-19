@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import asyncio, ctypes, json, os, pathlib, sys, threading, time, tkinter as tk
+import asyncio, ctypes, io, json, os, pathlib, sys, threading, time, tkinter as tk, winreg
 from dataclasses import dataclass, field
 from tkinter import scrolledtext, ttk
 from typing import Any, Optional
@@ -17,6 +17,8 @@ except ImportError:
 try:
     from winsdk.windows.ui.notifications.management import UserNotificationListener
     from winsdk.windows.ui.notifications import NotificationKinds
+    from winsdk.windows.storage.streams import DataReader, Buffer
+    WINSDK_OK = True
 except ImportError:
     print("winsdk not installed: pip install winrt-Windows.UI.Notifications")
     sys.exit(1)
@@ -29,8 +31,8 @@ CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
 MANIFEST_PATH = os.path.join(BASE_DIR, "vr_notifier.vrmanifest")
 
 DEFAULTS = {
-    "pos_x": 0.25, "pos_y": 0.20, "pos_z": -0.75,
-    "dnd_enabled": False, "overlay_width_m": 0.45, "overlay_alpha": 0.9,
+    "pos_x": 0.25, "pos_y": 0.3, "pos_z": -1.0000000000000002,
+    "dnd_enabled": False, "overlay_width_m": 0.5, "overlay_alpha": 1.0,
     "display_seconds": 5.0, "fade_duration": 0.25, "history_max": 50,
 }
 POS_X_RANGE = (-1.0, 1.0)
@@ -46,6 +48,7 @@ class Notification:
     title: str
     body: str
     timestamp: float = field(default_factory=time.time)
+    icon_bytes: Optional[bytes] = None
 
 class ConfigStore:
     def __init__(self, path: str = CONFIG_FILE) -> None:
@@ -122,6 +125,7 @@ class OverlayRenderer:
         self.overlay = overlay
         self.overlay_handle = overlay_handle
         self.config = config
+        self._icon_cache: dict = {}
         self.overlay.setOverlayWidthInMeters(self.overlay_handle, config.overlay_width_m)
         self.overlay.setOverlayAlpha(self.overlay_handle, config.overlay_alpha)
         self.apply_transform()
@@ -157,7 +161,20 @@ class OverlayRenderer:
             fill=(30, 30, 40, 230), outline=(80, 80, 100, 255), width=2)
         font_title = self._load_font(22)
         font_body = self._load_font(18)
-        draw.text((30, 25), str(n.app_name).upper()[:32], font=font_title, fill=(0, 162, 255, 255))
+
+        icon = self._get_icon(n)
+        icon_size = 40
+        icon_x, icon_y = 20, 18
+        text_x = 70
+        if icon is not None:
+            try:
+                img.paste(icon, (icon_x, icon_y), icon)
+            except Exception:
+                text_x = 30
+        else:
+            text_x = 30
+
+        draw.text((text_x, 25), str(n.app_name).upper()[:32], font=font_title, fill=(0, 162, 255, 255))
         draw.text((30, 65), str(n.title)[:60], font=font_title, fill=(255, 255, 255, 255))
         body_lines = self._wrap_text(draw, str(n.body), font_body, max_width=TEXTURE_W - 60, max_lines=3)
         y = 105
@@ -168,6 +185,20 @@ class OverlayRenderer:
             draw.text((TEXTURE_W - 110, TEXTURE_H - 32), f"+{queue_depth} more",
                       font=font_body, fill=(255, 180, 80, 255))
         self._upload(img)
+
+    def _get_icon(self, n: Notification) -> Optional[Image.Image]:
+        if n.app_name in self._icon_cache:
+            return self._icon_cache[n.app_name]
+        icon = None
+        if n.icon_bytes:
+            try:
+                raw = Image.open(io.BytesIO(n.icon_bytes))
+                raw.load()
+                icon = raw.convert("RGBA").resize((40, 40), Image.LANCZOS)
+            except Exception:
+                icon = None
+        self._icon_cache[n.app_name] = icon
+        return icon
 
     def _upload(self, img: Image.Image) -> None:
         try:
@@ -766,11 +797,16 @@ class NotificationListener:
         app_name = "System App"
         title = "New Notification"
         body = ""
+        icon_bytes = None
         try:
             display_info = note.app_info.display_info
             app_name = (getattr(display_info, "display_name", None)
                 or getattr(display_info, "displayName", None) or "System App")
             app_name = str(app_name)
+            icon_bytes = await self._extract_icon(display_info)
+            if icon_bytes is None:
+                aumid = getattr(note.app_info, "app_user_model_id", "")
+                icon_bytes = await self._extract_icon_from_registry(aumid)
         except Exception:
             app_name = "System App"
         try:
@@ -795,15 +831,66 @@ class NotificationListener:
             title = "System Alert"
             body = "Check your desktop for details."
         try:
-            await self.queue.put((app_name, title, body))
+            await self.queue.put((app_name, title, body, icon_bytes))
         except Exception:
             pass
+
+    @staticmethod
+    async def _extract_icon(display_info) -> Optional[bytes]:
+        for sz in (256, 48, 32, 16):
+            try:
+                logo_ref = display_info.get_logo(Size(sz, sz))
+                if logo_ref is not None:
+                    stream = await asyncio.wait_for(logo_ref.open_read_async(), timeout=2.0)
+                    try:
+                        size = stream.size
+                        if size <= 0 or size > 1024 * 1024:
+                            continue
+                        buf = Buffer(int(size))
+                        await asyncio.wait_for(stream.read_async(buf, int(size), 0), timeout=2.0)
+                        reader = DataReader.from_buffer(buf)
+                        data = reader.read_bytes(int(size))
+                        result = bytes(data)
+                        return result
+                    finally:
+                        try:
+                            stream.close()
+                        except Exception:
+                            pass
+            except Exception:
+                continue
+        return None
+
+    @staticmethod
+    async def _extract_icon_from_registry(aumid: str) -> Optional[bytes]:
+        if not aumid:
+            return None
+        try:
+            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER,
+                f"Software\\Classes\\AppUserModelId\\{aumid}")
+            try:
+                icon_uri, _ = winreg.QueryValueEx(key, "IconUri")
+                if icon_uri.startswith("file:///"):
+                    icon_path = icon_uri[8:].replace("/", "\\")
+                elif icon_uri.startswith("ms-appx"):
+                    return None
+                else:
+                    icon_path = icon_uri
+                with open(icon_path, "rb") as f:
+                    data = f.read()
+                return data
+            finally:
+                winreg.CloseKey(key)
+        except FileNotFoundError:
+            return None
+        except Exception as e:
+            return None
 
     async def _worker(self) -> None:
         loop = asyncio.get_running_loop()
         while self.app.running.is_set():
             try:
-                app_name, title, body = await asyncio.wait_for(self.queue.get(), timeout=1.0)
+                app_name, title, body, icon_bytes = await asyncio.wait_for(self.queue.get(), timeout=1.0)
             except asyncio.TimeoutError:
                 continue
             self.app.history.add(Notification(app_name=app_name, title=title, body=body))
@@ -818,7 +905,7 @@ class NotificationListener:
             queue_depth = self.queue.qsize()
             shown = False
             try:
-                n = Notification(app_name=app_name, title=title, body=body)
+                n = Notification(app_name=app_name, title=title, body=body, icon_bytes=icon_bytes)
                 render_ok = True
                 try:
                     await loop.run_in_executor(None,
@@ -843,7 +930,6 @@ class NotificationListener:
                     except Exception:
                         pass
                 self.queue.task_done()
-
 
 class TrayController:
     def __init__(self, app: "VRNotificationApp") -> None:
@@ -1231,7 +1317,7 @@ class VRNotificationApp:
         try:
             asyncio.run_coroutine_threadsafe(
                 queue.put(("Test App", "Hello from VR Notifier!",
-                    "If you see this in your headset, positioning works!")),
+                    "If you see this in your headset, positioning works!", None)),
                 loop)
         except RuntimeError as e:
             self.start_listener()
@@ -1243,7 +1329,7 @@ class VRNotificationApp:
         try:
             asyncio.run_coroutine_threadsafe(
                 self.listener.queue.put(("Test App", "Hello from VR Notifier!",
-                    "If you see this in your headset, positioning works!")),
+                    "If you see this in your headset, positioning works!", None)),
                 self.listener.loop)
         except Exception:
             pass
