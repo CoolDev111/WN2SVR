@@ -31,9 +31,9 @@ CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
 MANIFEST_PATH = os.path.join(BASE_DIR, "vr_notifier.vrmanifest")
 
 DEFAULTS = {
-    "pos_x": 0.25, "pos_y": 0.3, "pos_z": -1.0000000000000002,
-    "dnd_enabled": False, "overlay_width_m": 0.5, "overlay_alpha": 1.0,
-    "display_seconds": 5.0, "fade_duration": 0.25, "history_max": 50,
+    "pos_x": 0.3, "pos_y": 0.39999999999999997, "pos_z": -1.0000000000000002,
+    "dnd_enabled": False, "overlay_width_m": 0.55, "overlay_alpha": 1.0,
+    "display_seconds": 3.0, "fade_duration": 0.2, "history_max": 50,
 }
 POS_X_RANGE = (-1.0, 1.0)
 POS_Y_RANGE = (-1.0, 1.0)
@@ -485,8 +485,8 @@ class DashboardPanel:
             draw.text((val_x - tw / 2, y + 10), val_text, font=font_btn, fill=(255, 255, 255, 255))
             draw.rounded_rectangle(plus, radius=8, fill=(60, 150, 80, 255))
             draw.text((plus[0] + 18, plus[1] + 10), "+", font=font_btn, fill=(255, 255, 255, 255))
-        draw.text((50, 470), "Tip: Use the desktop app's Preview Overlay", font=font_body, fill=(150, 150, 160, 255))
-        draw.text((50, 495), "to see changes in real-time while adjusting here.", font=font_body, fill=(150, 150, 160, 255))
+        draw.text((50, 470), "Tip: Use the Preview Overlay to see", font=font_body, fill=(150, 150, 160, 255))
+        draw.text((50, 495), "changes in real-time while adjusting here.", font=font_body, fill=(150, 150, 160, 255))
 
     def _draw_appearance_tab(self, draw, font_btn, font_sub, font_body) -> None:
         draw.text((50, 150), "Overlay Appearance", font=font_sub, fill=(180, 180, 190, 255))
@@ -839,7 +839,7 @@ class NotificationListener:
     async def _extract_icon(display_info) -> Optional[bytes]:
         for sz in (256, 48, 32, 16):
             try:
-                logo_ref = display_info.get_logo(Size(sz, sz))
+                logo_ref = display_info.get_logo(Size(sz, sz)) # type: ignore
                 if logo_ref is not None:
                     stream = await asyncio.wait_for(logo_ref.open_read_async(), timeout=2.0)
                     try:
@@ -916,7 +916,19 @@ class NotificationListener:
                     continue
                 await self.app.renderer.fade_in()
                 shown = True
-                await asyncio.sleep(self.app.config.display_seconds)
+                last_depth = queue_depth
+                remaining = self.app.config.display_seconds
+                while remaining > 0 and self.app.running.is_set():
+                    await asyncio.sleep(min(0.5, remaining))
+                    remaining -= 0.5
+                    current_depth = self.queue.qsize()
+                    if current_depth != last_depth:
+                        last_depth = current_depth
+                        try:
+                            await loop.run_in_executor(None,
+                                lambda d=current_depth: self.app.renderer.render(n, queue_depth=d))
+                        except Exception:
+                            pass
                 await self.app.renderer.fade_out()
                 shown = False
             except asyncio.CancelledError:
@@ -1201,9 +1213,11 @@ class VRNotificationApp:
             self.listener = NotificationListener(self)
             self.gui.root.after(0, self._on_steamvr_ready)
         except openvr.OpenVRError as e:
-            self.gui.root.after(0, lambda: self._on_steamvr_failed(str(e)))
-        except Exception:
-            self.gui.root.after(0, lambda: self._on_steamvr_failed(str(e)))
+            err_msg = str(e) 
+            self.gui.root.after(0, lambda: self._on_steamvr_failed(err_msg))
+        except Exception as e:
+            err_msg = str(e)
+            self.gui.root.after(0, lambda: self._on_steamvr_failed(err_msg))
 
     def _on_steamvr_ready(self) -> None:
         self.gui.refresh_status()
